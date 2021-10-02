@@ -1,6 +1,5 @@
 /**
  * @typedef {Object} CheckResult
- * @property {boolean} valid Is the JSON valid?
  * @property {string[]} warnings A list of warnings
  * @property {string[]} errors A list of errors
  */
@@ -20,7 +19,6 @@ function checkJSON(data) {
 
 	if (!json)
 		return {
-			valid: false,
 			warnings: [],
 			errors: ['JSON is invalid'],
 		};
@@ -85,12 +83,12 @@ function checkJSON(data) {
 	if (fields && fields.length > 25) errors.push('Too many fields (>25)');
 	if (fields && Array.isArray(fields))
 		fields.forEach((field, index) => {
-			if (!field) errors.push(`${ordinal(index)} field is empty`);
+			if (!field) errors.push(`${ordinal(index + 1)} field is empty`);
 
 			errors.push(
 				getStringErrors(
 					field.name,
-					`${ordinal(index)} field name`,
+					`${ordinal(index + 1)} field's name`,
 					false,
 					256,
 				),
@@ -98,14 +96,16 @@ function checkJSON(data) {
 			errors.push(
 				getStringErrors(
 					field.value,
-					`${ordinal(index)} field value`,
+					`${ordinal(index + 1)} field's value`,
 					false,
 					1024,
 				),
 			);
 
 			if (field.inline && typeof field.inline !== 'boolean')
-				errors.push(`${ordinal(index)} field inline is not a boolean`);
+				errors.push(
+					`${ordinal(index + 1)} field inline is not a boolean`,
+				);
 		});
 
 	// No content
@@ -114,8 +114,7 @@ function checkJSON(data) {
 		isStringEmpty(description) &&
 		(!author || isStringEmpty(author.name)) &&
 		(!footer || isStringEmpty(footer.text)) &&
-		!fields &&
-		fields.length === 0
+		(!fields || fields.length === 0)
 	)
 		errors.push(
 			'No content (title, description, author, footer, or fields).',
@@ -127,7 +126,6 @@ function checkJSON(data) {
 	warnings = warnings.filter(x => x !== null);
 
 	return {
-		valid: errors.length === 0,
 		warnings,
 		errors,
 	};
@@ -139,6 +137,7 @@ function checkJSON(data) {
  * @returns {boolean}
  */
 function isValidURL(url) {
+	if (!url) return true;
 	if (typeof url !== 'string') return false;
 	const pattern = new RegExp(
 		'^(https?:\\/\\/)?' + // protocol
@@ -219,14 +218,16 @@ const errorsEl = document.getElementById('errors');
 input.addEventListener('input', () => {
 	const data = input.value;
 	if (input.value.replace(/[ \n]/g, '') == '') {
-		validEl.innerHTML = '';
+		validEl.innerHTML = 'Valid:';
 		warningsEl.innerHTML = '';
 		errorsEl.innerHTML = '';
 		return;
 	}
 
 	const {valid, warnings, errors} = checkJSON(data);
-	validEl.innerHTML = valid ? 'Yes' : 'No';
+	validEl.innerHTML = `Valid: <img id="valid-icon" src="${
+		errors.length > 0 ? 'error' : 'ok'
+	}.svg">`;
 	warningsEl.innerHTML = warnings.map(x => `<li>${x}</li>`).join('\n');
 	errorsEl.innerHTML = errors.map(x => `<li>${x}</li>`).join('\n');
 });
