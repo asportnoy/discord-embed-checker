@@ -1,0 +1,1 @@
+# discord-embed-checker
