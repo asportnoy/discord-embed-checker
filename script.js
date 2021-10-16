@@ -58,25 +58,52 @@ async function checkJSON(data) {
 
 	// Valid footer
 	if (footer) errors.push(getStringErrors(footer.text, 'Footer', true, 2048));
-	if (footer && footer.icon_url)
-		errors.push(await checkImage(footer.icon_url, 'Footer icon'));
+
+	if (footer && footer.icon_url) {
+		let res = await checkImage(footer.icon_url, 'Footer icon');
+		if (res == null) {
+			warnings.push('Footer icon could not be checked.');
+		} else if (res) {
+			errors.push(res);
+		}
+	}
+
 	if (footer && isStringEmpty(footer.text) && footer.icon_url)
 		warnings.push('Footer icon will not be shown without text');
 
 	// Valid image
-	if (image && image.url) errors.push(await checkImage(image.url, 'Image'));
+	if (image && image.url) {
+		let res = await checkImage(image.url, 'Image');
+		if (res == null) {
+			warnings.push('Image could not be checked.');
+		} else if (res) {
+			errors.push(res);
+		}
+	}
 
 	// Valid thumbnail
-	if (thumbnail && thumbnail.url)
-		errors.push(await checkImage(thumbnail.url, 'Thumbnail'));
+	if (thumbnail && thumbnail.url) {
+		let res = await checkImage(thumbnail.url, 'Thumbnail');
+		if (res == null) {
+			warnings.push('Thumbnail could not be checked.');
+		} else if (res) {
+			errors.push(res);
+		}
+	}
 
 	// Valid author
 	if (author)
 		errors.push(getStringErrors(author.name, 'Author name', true, 256));
 	if (author && !isValidURL(author.url))
 		errors.push('Author has an invalid URL');
-	if (author && author.icon_url)
-		errors.push(await checkImage(author.icon_url, 'Author icon'));
+	if (author && author.icon_url) {
+		let res = await checkImage(author.icon_url, 'Author icon');
+		if (res == null) {
+			warnings.push('Author icon could not be checked.');
+		} else if (res) {
+			errors.push(res);
+		}
+	}
 	if (author && isStringEmpty(author.name) && (author.url || author.icon_url))
 		warnings.push('Author URL and icon will not be shown without a name');
 
@@ -214,10 +241,10 @@ function isStringEmpty(string) {
  * @async
  * @param {string} url Image URL
  * @param {string = "Image"} prefix Prefix to add to error message
- * @returns {string | null} String error message or null if valid
+ * @returns {string | false | null} String error message, null if failed to check, false if valid
  */
 async function checkImage(url, prefix = 'Image') {
-	if (!url) return null;
+	if (!url) return false;
 	if (checkedImageLinks.has(url))
 		return `${prefix} ${checkedImageLinks.get(url)}`;
 	if (typeof url !== 'string') return `${prefix} is not a string`;
@@ -226,7 +253,7 @@ async function checkImage(url, prefix = 'Image') {
 	let error = null;
 	const response = await fetch(url).catch(e => null);
 	if (!response) {
-		error = `could not be fetched`;
+		return null;
 	} else if (!response.ok) {
 		error = `gave bad response (${response.status} ${response.statusText})`;
 	} else {
@@ -243,7 +270,7 @@ async function checkImage(url, prefix = 'Image') {
 	}
 
 	checkedImageLinks.set(url, error);
-	return error ? `${prefix} ${error}` : null;
+	return error ? `${prefix} ${error}` : error;
 }
 
 const input = document.getElementById('input');
