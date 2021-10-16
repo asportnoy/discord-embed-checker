@@ -1,3 +1,5 @@
+let checkedImageLinks = new Map();
+
 /**
  * @typedef {Object} CheckResult
  * @property {string[]} warnings A list of warnings
@@ -6,10 +8,11 @@
 
 /**
  * Check an embed JSON
+ * @async
  * @param {string} data The data as a string
  * @returns {CheckResult}
  */
-function checkJSON(data) {
+async function checkJSON(data) {
 	let json = undefined,
 		warnings = [],
 		errors = [];
@@ -55,26 +58,25 @@ function checkJSON(data) {
 
 	// Valid footer
 	if (footer) errors.push(getStringErrors(footer.text, 'Footer', true, 2048));
-	if (footer && !isValidURL(footer.icon_url))
-		errors.push('Footer has an invalid icon URL');
+	if (footer && footer.icon_url)
+		errors.push(await checkImage(footer.icon_url, 'Footer icon'));
 	if (footer && isStringEmpty(footer.text) && footer.icon_url)
 		warnings.push('Footer icon will not be shown without text');
 
 	// Valid image
-	if (image && !isValidURL(image.url))
-		errors.push('Image has an invalid URL');
+	if (image && image.url) errors.push(await checkImage(image.url, 'Image'));
 
 	// Valid thumbnail
-	if (thumbnail && !isValidURL(thumbnail.url))
-		errors.push('Thumbnail has an invalid URL');
+	if (thumbnail && thumbnail.url)
+		errors.push(await checkImage(thumbnail.url, 'Thumbnail'));
 
 	// Valid author
 	if (author)
 		errors.push(getStringErrors(author.name, 'Author name', true, 256));
 	if (author && !isValidURL(author.url))
 		errors.push('Author has an invalid URL');
-	if (author && !isValidURL(author.icon_url))
-		errors.push('Author has an invalid icon URL');
+	if (author && author.icon_url)
+		errors.push(await checkImage(author.icon_url, 'Author icon'));
 	if (author && isStringEmpty(author.name) && (author.url || author.icon_url))
 		warnings.push('Author URL and icon will not be shown without a name');
 
@@ -210,12 +212,48 @@ function isStringEmpty(string) {
 	return string.replace(/[ \n]/g, '') == '';
 }
 
+/**
+ * Check if an image is a valid type
+ * @async
+ * @param {string} url Image URL
+ * @param {string = "Image"} prefix Prefix to add to error message
+ * @returns {string | null} String error message or null if valid
+ */
+async function checkImage(url, prefix = 'Image') {
+	if (!url) return null;
+	if (checkedImageLinks.has(url)) return checkedImageLinks.get(url);
+	if (typeof url !== 'string') return `${prefix} is not a string`;
+	if (!isValidURL(url)) return `${prefix} is not a valid URL`;
+
+	let error = null;
+	const response = await fetch(url).catch(e => null);
+	if (!response) {
+		error = `could not be fetched`;
+	} else if (!response.ok) {
+		error = `gave bad response (${response.status} ${response.statusText})`;
+	} else {
+		const contentType = response.headers.get('content-type');
+		if (!contentType || !contentType.startsWith('image/')) {
+			error = 'is not an image';
+		} else if (
+			!['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(
+				contentType,
+			)
+		) {
+			error = `is an unsupported image type (should be png, jpeg, gif, or webp)`;
+		}
+	}
+
+	checkedImageLinks.set(url, error);
+	return error ? `${prefix} ${error}` : null;
+}
+
 const input = document.getElementById('input');
 const validEl = document.getElementById('valid');
 const warningsEl = document.getElementById('warnings');
 const errorsEl = document.getElementById('errors');
 
-input.addEventListener('input', () => {
+input.addEventListener('input', async () => {
 	const data = input.value;
 	if (input.value.replace(/[ \n]/g, '') == '') {
 		validEl.innerHTML = 'Valid:';
@@ -224,7 +262,7 @@ input.addEventListener('input', () => {
 		return;
 	}
 
-	const {valid, warnings, errors} = checkJSON(data);
+	const {valid, warnings, errors} = await checkJSON(data);
 	validEl.innerHTML = `Valid: <img id="valid-icon" src="${
 		errors.length > 0 ? 'error' : 'ok'
 	}.svg">`;
