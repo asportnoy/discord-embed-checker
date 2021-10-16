@@ -41,7 +41,7 @@ body {
 	margin: 5px 0px;
 }
 
-#results ul:empty {
+#results li:empty {
 	margin: 0px;
 }
 
@@ -57,4 +57,9 @@ body {
 
 #valid-icon {
 	vertical-align: middle;
+}
+
+#errorText,
+#warningText {
+	display: none;
 }

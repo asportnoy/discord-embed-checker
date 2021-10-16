@@ -281,6 +281,8 @@ const input = document.getElementById('input');
 const validEl = document.getElementById('valid');
 const warningsEl = document.getElementById('warnings');
 const errorsEl = document.getElementById('errors');
+const warningTextEl = document.getElementById('warningText');
+const errorTextEl = document.getElementById('errorText');
 
 input.addEventListener('input', async () => {
 	const data = input.value;
@@ -297,4 +299,7 @@ input.addEventListener('input', async () => {
 	}.svg">`;
 	warningsEl.innerHTML = warnings.map(x => `<li>${x}</li>`).join('\n');
 	errorsEl.innerHTML = errors.map(x => `<li>${x}</li>`).join('\n');
+
+	warningTextEl.style.display = warnings.length > 0 ? 'initial' : '';
+	errorTextEl.style.display = errors.length > 0 ? 'initial' : '';
 });
