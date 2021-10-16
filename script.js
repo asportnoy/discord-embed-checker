@@ -1,5 +1,19 @@
 let checkedImageLinks = new Map();
 
+const validKeys = [
+	'title',
+	'type',
+	'description',
+	'url',
+	'timestamp',
+	'color',
+	'footer',
+	'image',
+	'thumbnail',
+	'author',
+	'fields',
+];
+
 /**
  * @typedef {Object} CheckResult
  * @property {string[]} warnings A list of warnings
@@ -138,6 +152,11 @@ async function checkJSON(data) {
 		);
 
 	if (data.length > 6000) errors.push('JSON is too long (>6000 characters)');
+
+	Object.keys(json).forEach(key => {
+		if (!validKeys.includes(key))
+			warnings.push(`"${key}" is not a valid key`);
+	});
 
 	errors = errors.filter(x => x !== null);
 	warnings = warnings.filter(x => x !== null);
