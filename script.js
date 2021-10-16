@@ -61,11 +61,8 @@ async function checkJSON(data) {
 
 	if (footer && footer.icon_url) {
 		let res = await checkImage(footer.icon_url, 'Footer icon');
-		if (res == null) {
-			warnings.push('Footer icon could not be checked.');
-		} else if (res) {
-			errors.push(res);
-		}
+		if (res.kind == 'error') errors.push(res.text);
+		if (res.kind == 'warning') warnings.push(res.text);
 	}
 
 	if (footer && isStringEmpty(footer.text) && footer.icon_url)
@@ -74,21 +71,15 @@ async function checkJSON(data) {
 	// Valid image
 	if (image && image.url) {
 		let res = await checkImage(image.url, 'Image');
-		if (res == null) {
-			warnings.push('Image could not be checked.');
-		} else if (res) {
-			errors.push(res);
-		}
+		if (res.kind == 'error') errors.push(res.text);
+		if (res.kind == 'warning') warnings.push(res.text);
 	}
 
 	// Valid thumbnail
 	if (thumbnail && thumbnail.url) {
 		let res = await checkImage(thumbnail.url, 'Thumbnail');
-		if (res == null) {
-			warnings.push('Thumbnail could not be checked.');
-		} else if (res) {
-			errors.push(res);
-		}
+		if (res.kind == 'error') errors.push(res.text);
+		if (res.kind == 'warning') warnings.push(res.text);
 	}
 
 	// Valid author
@@ -98,11 +89,8 @@ async function checkJSON(data) {
 		errors.push('Author has an invalid URL');
 	if (author && author.icon_url) {
 		let res = await checkImage(author.icon_url, 'Author icon');
-		if (res == null) {
-			warnings.push('Author icon could not be checked.');
-		} else if (res) {
-			errors.push(res);
-		}
+		if (res.kind == 'error') errors.push(res.text);
+		if (res.kind == 'warning') warnings.push(res.text);
 	}
 	if (author && isStringEmpty(author.name) && (author.url || author.icon_url))
 		warnings.push('Author URL and icon will not be shown without a name');
@@ -241,36 +229,52 @@ function isStringEmpty(string) {
  * @async
  * @param {string} url Image URL
  * @param {string = "Image"} prefix Prefix to add to error message
- * @returns {string | false | null} String error message, null if failed to check, false if valid
+ * @returns {Promise<{text: string | null, kind: "error" | "warning" | null}>} Error
  */
 async function checkImage(url, prefix = 'Image') {
 	if (!url) return false;
-	if (checkedImageLinks.has(url))
-		return `${prefix} ${checkedImageLinks.get(url)}`;
-	if (typeof url !== 'string') return `${prefix} is not a string`;
-	if (!isValidURL(url)) return `${prefix} is not a valid URL`;
+	if (typeof url !== 'string') {
+		return {text: `${prefix} is not a string`, kind: 'error'};
+	}
+	if (!isValidURL(url)) {
+		return {text: `${prefix} is not a valid URL`, kind: 'error'};
+	}
 
-	let error = null;
-	const response = await fetch(url).catch(e => null);
-	if (!response) {
-		return null;
-	} else if (!response.ok) {
-		error = `gave bad response (${response.status} ${response.statusText})`;
+	let text = null,
+		kind = null;
+
+	if (checkedImageLinks.has(url)) {
+		({text, kind} = checkedImageLinks.get(url));
 	} else {
-		const contentType = response.headers.get('content-type');
-		if (!contentType || !contentType.startsWith('image/')) {
-			error = 'is not an image';
-		} else if (
-			!['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(
-				contentType,
-			)
-		) {
-			error = `is an unsupported image type (should be png, jpeg, gif, or webp)`;
+		const response = await fetch(url).catch(e => null);
+		if (!response) {
+			text = `could not be checked`;
+			kind = 'warning';
+		} else if (!response.ok) {
+			text = `gave bad response (${response.status} ${response.statusText})`;
+			kind = 'warning';
+		} else {
+			const contentType = response.headers.get('content-type');
+			if (!contentType || !contentType.startsWith('image/')) {
+				text = 'is not an image';
+				kind = 'warning';
+			} else if (
+				![
+					'image/png',
+					'image/jpeg',
+					'image/gif',
+					'image/webp',
+				].includes(contentType)
+			) {
+				text = `is an unsupported image type (should be png, jpeg, gif, or webp)`;
+				kind = 'warning';
+			}
 		}
 	}
 
-	checkedImageLinks.set(url, error);
-	return error ? `${prefix} ${error}` : error;
+	checkedImageLinks.set(url, {text, kind});
+	if (text) text = `${prefix} ${text}`;
+	return {text, kind};
 }
 
 const input = document.getElementById('input');
