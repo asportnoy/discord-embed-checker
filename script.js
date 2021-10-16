@@ -221,7 +221,8 @@ function isStringEmpty(string) {
  */
 async function checkImage(url, prefix = 'Image') {
 	if (!url) return null;
-	if (checkedImageLinks.has(url)) return checkedImageLinks.get(url);
+	if (checkedImageLinks.has(url))
+		return `${prefix} ${checkedImageLinks.get(url)}`;
 	if (typeof url !== 'string') return `${prefix} is not a string`;
 	if (!isValidURL(url)) return `${prefix} is not a valid URL`;
 
