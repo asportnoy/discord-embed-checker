@@ -71,50 +71,74 @@ async function checkJSON(data) {
 	if (color && !isValidColor(color)) errors.push('Color is invalid');
 
 	// Valid footer
-	if (footer) errors.push(getStringErrors(footer.text, 'Footer', true, 2048));
+	if (footer) {
+		if (typeof footer == 'object') {
+			errors.push(getStringErrors(footer.text, 'Footer', true, 2048));
 
-	if (footer && footer.icon_url) {
-		let res = await checkImage(footer.icon_url, 'Footer icon');
-		if (res.kind == 'error') errors.push(res.text);
-		if (res.kind == 'warning') warnings.push(res.text);
+			let res = await checkImage(footer.icon_url, 'Footer icon');
+			if (res.kind == 'error') errors.push(res.text);
+			if (res.kind == 'warning') warnings.push(res.text);
+
+			if (isStringEmpty(footer.text) && footer.icon_url)
+				warnings.push('Footer icon will not be shown without text');
+		} else {
+			errors.push('Footer is not an object');
+		}
 	}
 
-	if (footer && isStringEmpty(footer.text) && footer.icon_url)
-		warnings.push('Footer icon will not be shown without text');
-
 	// Valid image
-	if (image && image.url) {
-		let res = await checkImage(image.url, 'Image');
-		if (res.kind == 'error') errors.push(res.text);
-		if (res.kind == 'warning') warnings.push(res.text);
+	if (image) {
+		if (typeof image == 'object') {
+			let res = await checkImage(image.url, 'Image');
+			if (res.kind == 'error') errors.push(res.text);
+			if (res.kind == 'warning') warnings.push(res.text);
+		} else {
+			errors.push('Image is not an object');
+		}
 	}
 
 	// Valid thumbnail
-	if (thumbnail && thumbnail.url) {
-		let res = await checkImage(thumbnail.url, 'Thumbnail');
-		if (res.kind == 'error') errors.push(res.text);
-		if (res.kind == 'warning') warnings.push(res.text);
+	if (thumbnail) {
+		if (typeof thumbnail == 'object') {
+			let res = await checkImage(thumbnail.url, 'Thumbnail');
+			if (res.kind == 'error') errors.push(res.text);
+			if (res.kind == 'warning') warnings.push(res.text);
+		} else {
+			errors.push('Thumbnail is not an object');
+		}
 	}
 
 	// Valid author
-	if (author)
-		errors.push(getStringErrors(author.name, 'Author name', true, 256));
-	if (author && !isValidURL(author.url))
-		errors.push('Author has an invalid URL');
-	if (author && author.icon_url) {
-		let res = await checkImage(author.icon_url, 'Author icon');
-		if (res.kind == 'error') errors.push(res.text);
-		if (res.kind == 'warning') warnings.push(res.text);
+	if (author) {
+		if (typeof author == 'object') {
+			errors.push(getStringErrors(author.name, 'Author name', true, 256));
+			if (!isValidURL(author.url))
+				errors.push('Author has an invalid URL');
+
+			let res = await checkImage(author.icon_url, 'Author icon');
+			if (res.kind == 'error') errors.push(res.text);
+			if (res.kind == 'warning') warnings.push(res.text);
+
+			if (isStringEmpty(author.name) && (author.url || author.icon_url))
+				warnings.push(
+					'Author URL and icon will not be shown without a name',
+				);
+		} else {
+			errors.push('Author is not an object');
+		}
 	}
-	if (author && isStringEmpty(author.name) && (author.url || author.icon_url))
-		warnings.push('Author URL and icon will not be shown without a name');
 
 	// Valid fields
 	if (fields && !Array.isArray(fields)) errors.push('Fields is not an array');
 	if (fields && fields.length > 25) errors.push('Too many fields (>25)');
 	if (fields && Array.isArray(fields))
 		fields.forEach((field, index) => {
-			if (!field) errors.push(`${ordinal(index + 1)} field is empty`);
+			if (!field)
+				return errors.push(`${ordinal(index + 1)} field is empty`);
+			if (typeof field !== 'object')
+				return errors.push(
+					`${ordinal(index + 1)} field is not an object`,
+				);
 
 			errors.push(
 				getStringErrors(
@@ -133,7 +157,7 @@ async function checkJSON(data) {
 				),
 			);
 
-			if (field.inline && typeof field.inline !== 'boolean')
+			if (field.inline !== undefined && typeof field.inline !== 'boolean')
 				errors.push(
 					`${ordinal(index + 1)} field inline is not a boolean`,
 				);
